@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Buzzer Apéro 🔔</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔔</text></svg>" />
+  <link href="https://fonts.googleapis.com/css2?family=Boogaloo&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+      font-family: 'Nunito', sans-serif;
+      background: #1a0533;
+      background-image: radial-gradient(ellipse at 20% 50%, #2d0a5e 0%, transparent 60%),
+                        radial-gradient(ellipse at 80% 20%, #0a1a5e 0%, transparent 50%);
+      color: white;
+      min-height: 100vh;
+    }
+
+    :root {
+      --pink: #ff4d8d; --yellow: #ffd600; --orange: #ff6b35;
+      --purple: #a855f7; --green: #22c55e; --cyan: #06b6d4;
+    }
+
+    /* ===== NAV ===== */
+    .nav { display: flex; background: rgba(0,0,0,0.5); border-bottom: 1px solid rgba(255,255,255,0.1); position: fixed; top: 0; left: 0; right: 0; z-index: 100; }
+    .nav-btn { flex: 1; padding: 14px 8px; background: none; border: none; color: rgba(255,255,255,0.45); font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 800; cursor: pointer; letter-spacing: 1px; text-transform: uppercase; transition: all 0.2s; border-bottom: 3px solid transparent; }
+    .nav-btn.active { color: var(--yellow); border-bottom-color: var(--yellow); background: rgba(255,214,0,0.06); }
+
+    /* ===== PANELS ===== */
+    .panel { display: none; position: fixed; top: 53px; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 24px 16px; }
+    .panel.active { display: flex; flex-direction: column; align-items: center; }
+
+    /* ===== PLAYER PANEL ===== */
+    #player-panel { gap: 20px; justify-content: flex-start; padding-top: 30px; }
+
+    .name-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 24px 20px; width: 100%; max-width: 380px; text-align: center; }
+    .name-card h2 { font-family: 'Boogaloo', cursive; font-size: 26px; color: var(--yellow); margin-bottom: 6px; }
+    .name-card p { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 16px; }
+    .name-input { width: 100%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 14px 18px; color: white; font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 700; outline: none; text-align: center; margin-bottom: 12px; }
+    .name-input::placeholder { color: rgba(255,255,255,0.3); }
+    .name-input:focus { border-color: var(--purple); background: rgba(168,85,247,0.12); }
+    .join-btn { width: 100%; background: linear-gradient(135deg, var(--purple), #7c3aed); border: none; border-radius: 14px; padding: 15px; color: white; font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 800; cursor: pointer; transition: all 0.2s; letter-spacing: 0.5px; }
+    .join-btn:hover { transform: scale(1.02); filter: brightness(1.1); }
+    .join-btn:active { transform: scale(0.98); }
+
+    .player-greeting { font-family: 'Boogaloo', cursive; font-size: 26px; color: white; text-align: center; }
+    .player-greeting span { color: var(--cyan); }
+
+    /* BUZZER */
+    .buzzer-container { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+    .buzzer-btn {
+      width: 220px; height: 220px; border-radius: 50%; border: none; cursor: pointer;
+      background: radial-gradient(circle at 38% 32%, #ff85c2, #ff2d78 48%, #9b0046);
+      box-shadow: 0 10px 0 #6b0031, 0 14px 40px rgba(255,45,120,0.55), inset 0 2px 8px rgba(255,255,255,0.2);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+      transition: transform 0.08s, box-shadow 0.08s;
+      position: relative; user-select: none;
+    }
+    .buzzer-btn:active { transform: translateY(8px); box-shadow: 0 2px 0 #6b0031, 0 6px 20px rgba(255,45,120,0.4), inset 0 2px 8px rgba(255,255,255,0.15); }
+    .buzzer-btn.pressed { transform: translateY(8px); box-shadow: 0 2px 0 #6b0031, 0 6px 20px rgba(255,45,120,0.4); }
+    .buzzer-btn.disabled { background: radial-gradient(circle at 38% 32%, #666, #3a3a3a 48%, #1a1a1a); box-shadow: 0 10px 0 #111, 0 14px 30px rgba(0,0,0,0.3); cursor: not-allowed; }
+    .buzzer-btn.buzzed-style { background: radial-gradient(circle at 38% 32%, #fbbf24, #d97706 48%, #92400e); box-shadow: 0 10px 0 #5a2d00, 0 14px 40px rgba(217,119,6,0.45); cursor: not-allowed; }
+    .buzzer-icon { font-size: 60px; line-height: 1; }
+    .buzzer-label { font-family: 'Boogaloo', cursive; font-size: 26px; color: white; letter-spacing: 3px; }
+
+    .buzz-result-box { width: 100%; max-width: 340px; border-radius: 18px; padding: 20px; text-align: center; }
+    .buzz-result-box.winner { background: rgba(255,214,0,0.12); border: 2px solid var(--yellow); }
+    .buzz-result-box.placed { background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.12); }
+    .buzz-result-box .big-rank { font-size: 56px; line-height: 1; margin-bottom: 8px; }
+    .buzz-result-box h3 { font-family: 'Boogaloo', cursive; font-size: 26px; margin-bottom: 4px; }
+    .buzz-result-box p { font-size: 14px; color: rgba(255,255,255,0.6); }
+
+    /* ===== ADMIN PANEL ===== */
+    #admin-panel { align-items: stretch; gap: 16px; padding: 20px 16px; max-width: 600px; margin: 0 auto; }
+
+    .admin-header { display: flex; align-items: center; justify-content: space-between; }
+    .admin-header h2 { font-family: 'Boogaloo', cursive; font-size: 28px; color: var(--yellow); }
+    .reset-btn { background: var(--orange); border: none; border-radius: 12px; padding: 11px 20px; color: white; font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+    .reset-btn:hover { filter: brightness(1.1); transform: scale(1.03); }
+    .reset-btn:active { transform: scale(0.97); }
+
+    .stats-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .stat-pill { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 8px 16px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.75); display: flex; align-items: center; gap: 7px; }
+    .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.85)} }
+
+    .section-label { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); text-transform: uppercase; margin-bottom: 10px; }
+
+    /* BUZZ LOG */
+    .buzz-log { display: flex; flex-direction: column; gap: 9px; }
+    .buzz-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 13px 16px; display: flex; align-items: center; gap: 13px; animation: slideIn 0.3s ease; }
+    .buzz-card.first-place { background: rgba(255,214,0,0.1); border-color: rgba(255,214,0,0.4); }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
+    .rank-badge { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'Boogaloo', cursive; font-size: 18px; flex-shrink: 0; }
+    .r1 { background: var(--yellow); color: #1a0533; }
+    .r2 { background: rgba(200,200,210,0.25); color: #ccc; }
+    .r3 { background: rgba(180,100,30,0.3); color: #cd8a40; }
+    .rN { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.5); }
+    .buzz-info { flex: 1; min-width: 0; }
+    .buzz-name { font-size: 17px; font-weight: 800; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .buzz-card.first-place .buzz-name { color: var(--yellow); }
+    .buzz-time { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    .buzz-delay { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.45); text-align: right; flex-shrink: 0; }
+    .buzz-card.first-place .buzz-delay { color: var(--yellow); }
+
+    .empty-log { text-align: center; padding: 36px 20px; color: rgba(255,255,255,0.25); }
+    .empty-log div { font-size: 44px; margin-bottom: 10px; }
+    .empty-log p { font-size: 15px; }
+
+    /* PLAYERS CHIPS */
+    .players-wrap { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 14px; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 6px; }
+    .chip.buzzed { border-color: rgba(255,214,0,0.45); color: var(--yellow); }
+    .chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .chip.buzzed .chip-dot { background: var(--yellow); }
+    .no-players { font-size: 13px; color: rgba(255,255,255,0.3); }
+
+    /* SESSION CODE */
+    .session-box { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.2); border-radius: 16px; padding: 16px; text-align: center; }
+    .session-box .session-label { font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: var(--cyan); text-transform: uppercase; margin-bottom: 8px; }
+    .session-code { font-family: 'Boogaloo', cursive; font-size: 36px; color: white; letter-spacing: 6px; margin-bottom: 6px; }
+    .session-hint { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+    /* TOAST */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: rgba(30,30,50,0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 700; color: white; transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <button class="nav-btn active" id="tab-player" onclick="switchTab('player')">🎮 Joueur</button>
+  <button class="nav-btn" id="tab-admin" onclick="switchTab('admin')">🎛️ Animateur</button>
+</div>
+
+<!-- PLAYER PANEL -->
+<div class="panel active" id="player-panel">
+
+  <!-- Étape 1 : saisie du nom -->
+  <div class="name-card" id="name-card">
+    <h2>Bienvenue ! 🎉</h2>
+    <p>Entre ton prénom pour rejoindre la partie</p>
+    <input class="name-input" id="name-input" type="text" placeholder="Ton prénom..." maxlength="20" autocomplete="off" />
+    <button class="join-btn" onclick="joinGame()">Rejoindre la partie →</button>
+  </div>
+
+  <!-- Étape 2 : buzzer -->
+  <div id="game-section" style="display:none; width:100%; display:none; flex-direction:column; align-items:center; gap:20px;">
+    <div class="player-greeting">Prêt, <span id="greeting-name"></span> ! 🔥</div>
+    <div class="buzzer-container">
+      <button class="buzzer-btn" id="buzzer-btn" onclick="doBuzz()">
+        <div class="buzzer-icon" id="buzzer-icon">🔔</div>
+        <div class="buzzer-label" id="buzzer-label">BUZZ !</div>
+      </button>
+    </div>
+    <div class="buzz-result-box" id="buzz-result" style="display:none"></div>
+  </div>
+
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="panel" id="admin-panel">
+
+  <div class="admin-header">
+    <h2>🎛️ Animateur</h2>
+    <button class="reset-btn" onclick="resetRound()">↺ Nouvelle manche</button>
+  </div>
+
+  <div class="session-box">
+    <div class="session-label">Session en cours</div>
+    <div class="session-code" id="session-display">—</div>
+    <div class="session-hint">Les joueurs rejoignent automatiquement cette session</div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-pill"><div class="live-dot"></div><span id="stat-players">0 joueur(s)</span></div>
+    <div class="stat-pill">🔔 <span id="stat-buzzes">0 buzz</span></div>
+    <div class="stat-pill">⚡ Temps réel</div>
+  </div>
+
+  <div>
+    <div class="section-label">Ordre des buzzers</div>
+    <div class="buzz-log" id="buzz-log">
+      <div class="empty-log"><div>🔕</div><p>En attente du premier buzz...</p></div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-label">Joueurs connectés</div>
+    <div class="players-wrap" id="players-wrap">
+      <span class="no-players">Aucun joueur encore connecté</span>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://nrhvicdtbpjvhocfpyob.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5yaHZpY2R0YnBqdmhvY2ZweW9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2NjQwOTUsImV4cCI6MjA5MDI0MDA5NX0.He70OH6O3DCRBbwqvR9ZTov4kwaBIMvp8I9gorcmBCI';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+const SESSION_ID = 'session_' + new Date().toISOString().slice(0,10).replace(/-/g,'');
+let currentPlayer = null;
+let players = {};   // { name: { name, buzzed } }
+let buzzes = [];    // ordered list from DB
+let myBuzzRank = null;
+
+// ─── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(name + '-panel').classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'admin') renderAdmin();
+}
+
+// ─── JOIN ─────────────────────────────────────────────────────────────────────
+function joinGame() {
+  const name = document.getElementById('name-input').value.trim();
+  if (!name) { document.getElementById('name-input').focus(); return; }
+  currentPlayer = { name, buzzed: false };
+  players[name] = currentPlayer;
+  document.getElementById('name-card').style.display = 'none';
+  const gs = document.getElementById('game-section');
+  gs.style.display = 'flex';
+  document.getElementById('greeting-name').textContent = name;
+  playSound('join');
+  showToast('Tu as rejoint la partie ! 🎉');
+}
+
+// ─── BUZZ ─────────────────────────────────────────────────────────────────────
+async function doBuzz() {
+  if (!currentPlayer || currentPlayer.buzzed) return;
+  const btn = document.getElementById('buzzer-btn');
+  btn.classList.add('pressed');
+  setTimeout(() => btn.classList.remove('pressed'), 150);
+
+  currentPlayer.buzzed = true;
+  players[currentPlayer.name].buzzed = true;
+  setBuzzerBuzzed();
+  vibrate();
+  playSound('buzz');
+
+  try {
+    const { error } = await sb.from('buzzes').insert({
+      session_id: SESSION_ID,
+      player_name: currentPlayer.name,
+      buzzed_at: new Date().toISOString()
+    });
+    if (error) throw error;
+  } catch (e) {
+    showToast('Erreur de connexion 😕');
+    currentPlayer.buzzed = false;
+    resetBuzzerBtn();
+  }
+}
+
+function setBuzzerBuzzed() {
+  const btn = document.getElementById('buzzer-btn');
+  btn.className = 'buzzer-btn buzzed-style';
+  document.getElementById('buzzer-icon').textContent = '✅';
+  document.getElementById('buzzer-label').textContent = 'BUZZÉ !';
+}
+
+function resetBuzzerBtn() {
+  const btn = document.getElementById('buzzer-btn');
+  btn.className = 'buzzer-btn';
+  document.getElementById('buzzer-icon').textContent = '🔔';
+  document.getElementById('buzzer-label').textContent = 'BUZZ !';
+}
+
+function showBuzzResult(rank) {
+  myBuzzRank = rank;
+  const el = document.getElementById('buzz-result');
+  el.style.display = 'block';
+  if (rank === 1) {
+    el.className = 'buzz-result-box winner';
+    el.innerHTML = `<div class="big-rank">🏆</div><h3 style="color:var(--yellow)">PREMIER !</h3><p>Tu as buzzé en premier, bravo !</p>`;
+  } else {
+    const medals = ['','🥇','🥈','🥉'];
+    const icon = rank <= 3 ? medals[rank] : `#${rank}`;
+    el.className = 'buzz-result-box placed';
+    el.innerHTML = `<div class="big-rank">${icon}</div><h3 style="color:rgba(255,255,255,0.8)">Rang ${rank}</h3><p>${rank === 2 ? 'Presque ! La prochaine fois !' : 'Continue à jouer !'}</p>`;
+  }
+}
+
+// ─── REALTIME ─────────────────────────────────────────────────────────────────
+async function loadBuzzes() {
+  const { data } = await sb.from('buzzes')
+    .select('*')
+    .eq('session_id', SESSION_ID)
+    .order('buzzed_at', { ascending: true });
+  if (data) {
+    buzzes = data;
+    data.forEach(b => {
+      if (!players[b.player_name]) players[b.player_name] = { name: b.player_name, buzzed: true };
+      else players[b.player_name].buzzed = true;
+    });
+    if (currentPlayer && currentPlayer.buzzed && myBuzzRank === null) {
+      const rank = data.findIndex(b => b.player_name === currentPlayer.name) + 1;
+      if (rank > 0) showBuzzResult(rank);
+    }
+    renderAdmin();
+  }
+}
+
+sb.channel('buzzes-realtime')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buzzes', filter: `session_id=eq.${SESSION_ID}` }, payload => {
+    const b = payload.new;
+    buzzes.push(b);
+    if (!players[b.player_name]) players[b.player_name] = { name: b.player_name, buzzed: true };
+    else players[b.player_name].buzzed = true;
+
+    if (currentPlayer && b.player_name === currentPlayer.name && myBuzzRank === null) {
+      const rank = buzzes.length;
+      showBuzzResult(rank);
+    }
+    playSound('buzzOther');
+    renderAdmin();
+  })
+  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'buzzes' }, () => {
+    loadBuzzes();
+  })
+  .subscribe();
+
+loadBuzzes();
+
+// ─── ADMIN RENDER ─────────────────────────────────────────────────────────────
+function renderAdmin() {
+  document.getElementById('session-display').textContent = SESSION_ID.replace('session_','').replace(/(\d{4})(\d{2})(\d{2})/, '$1-$2-$3');
+  const playerList = Object.values(players);
+  document.getElementById('stat-players').textContent = playerList.length + ' joueur(s)';
+  document.getElementById('stat-buzzes').textContent = buzzes.length + ' buzz';
+
+  // Chips
+  const wrap = document.getElementById('players-wrap');
+  if (playerList.length === 0) {
+    wrap.innerHTML = '<span class="no-players">Aucun joueur encore connecté</span>';
+  } else {
+    wrap.innerHTML = playerList.map(p =>
+      `<div class="chip ${p.buzzed ? 'buzzed' : ''}"><div class="chip-dot"></div>${esc(p.name)}</div>`
+    ).join('');
+  }
+
+  // Buzz log
+  const log = document.getElementById('buzz-log');
+  if (buzzes.length === 0) {
+    log.innerHTML = '<div class="empty-log"><div>🔕</div><p>En attente du premier buzz...</p></div>';
+    return;
+  }
+  const first = new Date(buzzes[0].buzzed_at).getTime();
+  log.innerHTML = buzzes.map((b, i) => {
+    const rank = i + 1;
+    const rc = rank === 1 ? 'r1' : rank === 2 ? 'r2' : rank === 3 ? 'r3' : 'rN';
+    const delay = i === 0 ? 'EN PREMIER' : '+' + (new Date(b.buzzed_at).getTime() - first) + ' ms';
+    const time = new Date(b.buzzed_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const crown = rank === 1 ? ' 👑' : '';
+    return `<div class="buzz-card ${rank === 1 ? 'first-place' : ''}">
+      <div class="rank-badge ${rc}">${rank}</div>
+      <div class="buzz-info">
+        <div class="buzz-name">${esc(b.player_name)}${crown}</div>
+        <div class="buzz-time">${time}</div>
+      </div>
+      <div class="buzz-delay">${delay}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── RESET ────────────────────────────────────────────────────────────────────
+async function resetRound() {
+  if (!confirm('Remettre à zéro tous les buzzers pour une nouvelle manche ?')) return;
+  await sb.from('buzzes').delete().eq('session_id', SESSION_ID);
+  buzzes = [];
+  Object.values(players).forEach(p => p.buzzed = false);
+  if (currentPlayer) {
+    currentPlayer.buzzed = false;
+    myBuzzRank = null;
+    resetBuzzerBtn();
+    document.getElementById('buzz-result').style.display = 'none';
+  }
+  playSound('reset');
+  showToast('Nouvelle manche ! 🎲');
+  renderAdmin();
+}
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function vibrate() { try { navigator.vibrate && navigator.vibrate([70, 40, 100]); } catch(e){} }
+
+function playSound(type) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    if (type === 'buzz') {
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(180, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(700, ctx.currentTime + 0.12);
+      g.gain.setValueAtTime(0.45, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      o.start(); o.stop(ctx.currentTime + 0.35);
+    } else if (type === 'buzzOther') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(520, ctx.currentTime);
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      o.start(); o.stop(ctx.currentTime + 0.2);
+    } else if (type === 'join') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(440, ctx.currentTime);
+      o.frequency.setValueAtTime(660, ctx.currentTime + 0.12);
+      g.gain.setValueAtTime(0.2, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      o.start(); o.stop(ctx.currentTime + 0.28);
+    } else if (type === 'reset') {
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.setValueAtTime(440, ctx.currentTime + 0.12);
+      g.gain.setValueAtTime(0.2, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      o.start(); o.stop(ctx.currentTime + 0.3);
+    }
+  } catch(e) {}
+}
+
+// Enter key on name input
+document.getElementById('name-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') joinGame();
+});
+</script>
+</body>
+</html>
