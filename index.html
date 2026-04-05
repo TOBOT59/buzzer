@@ -425,7 +425,7 @@ function renderAdmin() {
 // ─── RESET ────────────────────────────────────────────────────────────────────
 async function resetRound() {
   if (!confirm('Remettre à zéro tous les buzzers pour une nouvelle manche ?')) return;
-  await sb.from('buzzes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  await sb.rpc('reset_buzzes');
   buzzes = [];
   Object.values(players).forEach(p => p.buzzed = false);
   if (currentPlayer) {
