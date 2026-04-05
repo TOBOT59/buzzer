@@ -126,13 +126,37 @@
     /* TOAST */
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: rgba(30,30,50,0.95); border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; padding: 12px 20px; font-size: 14px; font-weight: 700; color: white; transition: transform 0.3s ease; z-index: 999; white-space: nowrap; }
     .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* ADMIN TAB — caché sur mobile */
+    @media (max-width: 768px) { #tab-admin { display: none !important; } }
+
+    /* PASSWORD OVERLAY */
+    .pw-overlay { position: fixed; inset: 0; background: rgba(10,2,25,0.97); z-index: 500; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .pw-card { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; padding: 36px 28px; width: 100%; max-width: 360px; text-align: center; }
+    .pw-card h2 { font-family: 'Boogaloo', cursive; font-size: 28px; color: var(--yellow); margin-bottom: 8px; }
+    .pw-card p { font-size: 14px; color: rgba(255,255,255,0.45); margin-bottom: 24px; }
+    .pw-input { width: 100%; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 14px; padding: 14px 18px; color: white; font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 800; outline: none; text-align: center; margin-bottom: 14px; letter-spacing: 6px; }
+    .pw-input:focus { border-color: var(--yellow); background: rgba(255,214,0,0.08); }
+    .pw-btn { width: 100%; background: linear-gradient(135deg, #d97706, #f59e0b); border: none; border-radius: 14px; padding: 15px; color: #1a0533; font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 900; cursor: pointer; transition: all 0.2s; }
+    .pw-btn:hover { filter: brightness(1.1); transform: scale(1.02); }
+    .pw-error { font-size: 13px; color: #ff6b6b; margin-top: 10px; min-height: 18px; }
   </style>
 </head>
 <body>
 
+<div class="pw-overlay" id="pw-overlay" style="display:none">
+  <div class="pw-card">
+    <h2>🔐 Accès animateur</h2>
+    <p>Entre le mot de passe pour accéder au panel</p>
+    <input class="pw-input" id="pw-input" type="password" placeholder="••••" maxlength="10" />
+    <button class="pw-btn" onclick="checkPassword()">Accéder →</button>
+    <div class="pw-error" id="pw-error"></div>
+  </div>
+</div>
+
 <div class="nav">
   <button class="nav-btn active" id="tab-player" onclick="switchTab('player')">🎮 Joueur</button>
-  <button class="nav-btn" id="tab-admin" onclick="switchTab('admin')">🎛️ Animateur</button>
+  <button class="nav-btn" id="tab-admin" onclick="requestAdmin()">🎛️ Animateur</button>
 </div>
 
 <!-- PLAYER PANEL -->
@@ -211,6 +235,31 @@ let currentPlayer = null;
 let players = {};   // { name: { name, buzzed } }
 let buzzes = [];    // ordered list from DB
 let myBuzzRank = null;
+
+// ─── PASSWORD ────────────────────────────────────────────────────────────────
+const ADMIN_PASSWORD = '1973';
+let adminUnlocked = false;
+
+function requestAdmin() {
+  if (adminUnlocked) { switchTab('admin'); return; }
+  document.getElementById('pw-overlay').style.display = 'flex';
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-error').textContent = '';
+  setTimeout(() => document.getElementById('pw-input').focus(), 100);
+}
+
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  if (val === ADMIN_PASSWORD) {
+    adminUnlocked = true;
+    document.getElementById('pw-overlay').style.display = 'none';
+    switchTab('admin');
+  } else {
+    document.getElementById('pw-error').textContent = 'Mot de passe incorrect ❌';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
 
 // ─── TABS ────────────────────────────────────────────────────────────────────
 function switchTab(name) {
@@ -376,7 +425,7 @@ function renderAdmin() {
 // ─── RESET ────────────────────────────────────────────────────────────────────
 async function resetRound() {
   if (!confirm('Remettre à zéro tous les buzzers pour une nouvelle manche ?')) return;
-  await sb.from('buzzes').delete().eq('session_id', SESSION_ID);
+  await sb.from('buzzes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
   buzzes = [];
   Object.values(players).forEach(p => p.buzzed = false);
   if (currentPlayer) {
@@ -442,6 +491,11 @@ function playSound(type) {
 // Enter key on name input
 document.getElementById('name-input').addEventListener('keydown', e => {
   if (e.key === 'Enter') joinGame();
+});
+
+// Enter key on password input
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') checkPassword();
 });
 </script>
 </body>
