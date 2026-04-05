@@ -340,46 +340,54 @@ function showBuzzResult(rank) {
   }
 }
 
-// ─── REALTIME ─────────────────────────────────────────────────────────────────
-async function loadBuzzes() {
+// ─── ADMIN RENDER ─────────────────────────────────────────────────────────────// ─── POLLING (toutes les 2s) ──────────────────────────────────────────────────
+let lastBuzzCount = 0;
+
+async function poll() {
   const { data } = await sb.from('buzzes')
     .select('*')
-    .eq('session_id', SESSION_ID)
     .order('buzzed_at', { ascending: true });
-  if (data) {
-    buzzes = data;
-    data.forEach(b => {
-      if (!players[b.player_name]) players[b.player_name] = { name: b.player_name, buzzed: true };
-      else players[b.player_name].buzzed = true;
-    });
-    if (currentPlayer && currentPlayer.buzzed && myBuzzRank === null) {
-      const rank = data.findIndex(b => b.player_name === currentPlayer.name) + 1;
-      if (rank > 0) showBuzzResult(rank);
-    }
-    renderAdmin();
-  }
-}
 
-sb.channel('buzzes-realtime')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'buzzes', filter: `session_id=eq.${SESSION_ID}` }, payload => {
-    const b = payload.new;
-    buzzes.push(b);
+  if (!data) return;
+
+  const prevCount = buzzes.length;
+  buzzes = data;
+
+  // Mettre à jour les joueurs connus
+  data.forEach(b => {
     if (!players[b.player_name]) players[b.player_name] = { name: b.player_name, buzzed: true };
     else players[b.player_name].buzzed = true;
+  });
 
-    if (currentPlayer && b.player_name === currentPlayer.name && myBuzzRank === null) {
-      const rank = buzzes.length;
+  // Détecter un RESET (la table est vide alors qu'on avait des buzzers)
+  if (data.length === 0 && prevCount > 0) {
+    Object.values(players).forEach(p => p.buzzed = false);
+    if (currentPlayer) {
+      currentPlayer.buzzed = false;
+      myBuzzRank = null;
+      resetBuzzerBtn();
+      document.getElementById('buzz-result').style.display = 'none';
+    }
+    showToast('Nouvelle manche ! 🎲');
+  }
+
+  // Détecter un nouveau buzz pour le joueur actuel
+  if (currentPlayer && myBuzzRank === null) {
+    const myBuzz = data.find(b => b.player_name === currentPlayer.name);
+    if (myBuzz) {
+      const rank = data.indexOf(myBuzz) + 1;
       showBuzzResult(rank);
     }
-    playSound('buzzOther');
-    renderAdmin();
-  })
-  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'buzzes' }, () => {
-    loadBuzzes();
-  })
-  .subscribe();
+  }
 
-loadBuzzes();
+  // Jouer un son si nouveau buzz
+  if (data.length > prevCount) playSound('buzzOther');
+
+  renderAdmin();
+}
+
+poll();
+setInterval(poll, 2000);
 
 // ─── ADMIN RENDER ─────────────────────────────────────────────────────────────
 function renderAdmin() {
